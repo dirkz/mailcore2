@@ -181,47 +181,55 @@ static String * htmlForAbstractMessage(String * folder, AbstractMessage * messag
                                        Array * attachments,
                                        Array * relatedAttachments)
 {
-    AbstractPart * mainPart = NULL;
-    
     if (htmlCallback == NULL) {
         htmlCallback = new DefaultTemplateCallback();
         ((DefaultTemplateCallback *) htmlCallback)->autorelease();
     }
-    
-    if (message->className()->isEqual(MCSTR("mailcore::IMAPMessage"))) {
-        mainPart = ((IMAPMessage *) message)->mainPart();
+
+    String * content;
+
+    if (message->className()->isEqual(MCSTR("mailcore::MessageBuilder"))) {
+        content = ((MessageBuilder *) message)->htmlRendering(htmlCallback);
+    }else{
+        
+        AbstractPart * mainPart = NULL;
+        
+        if (message->className()->isEqual(MCSTR("mailcore::IMAPMessage"))) {
+            mainPart = ((IMAPMessage *) message)->mainPart();
+        }
+        else if (message->className()->isEqual(MCSTR("mailcore::MessageParser"))) {
+            mainPart = ((MessageParser *) message)->mainPart();
+        }
+        MCAssert(mainPart != NULL);
+        
+        htmlRendererContext context;
+        context.dataCallback = dataCallback;
+        context.htmlCallback = htmlCallback;
+        context.relatedAttachments = NULL;
+        context.attachments = NULL;
+        context.firstRendered = 0;
+        context.folder = folder;
+        context.state = RENDER_STATE_NONE;
+        
+        context.hasMixedTextAndAttachments = false;
+        context.pass = 0;
+        context.firstAttachment = false;
+        context.hasTextPart = false;
+        
+        htmlForAbstractPart(mainPart, &context);
+        
+        context.relatedAttachments = relatedAttachments;
+        context.attachments = attachments;
+        context.hasMixedTextAndAttachments = (context.state == RENDER_STATE_HAD_ATTACHMENT_THEN_TEXT);
+        context.pass = 1;
+        context.firstAttachment = false;
+        context.hasTextPart = false;
+        
+        htmlCallback->setMixedTextAndAttachmentsModeEnabled(context.hasMixedTextAndAttachments);
+        
+        content = htmlForAbstractPart(mainPart, &context);
     }
-    else if (message->className()->isEqual(MCSTR("mailcore::MessageParser"))) {
-        mainPart = ((MessageParser *) message)->mainPart();
-    }
-    MCAssert(mainPart != NULL);
     
-    htmlRendererContext context;
-    context.dataCallback = dataCallback;
-    context.htmlCallback = htmlCallback;
-    context.relatedAttachments = NULL;
-    context.attachments = NULL;
-    context.firstRendered = 0;
-    context.folder = folder;
-    context.state = RENDER_STATE_NONE;
-
-    context.hasMixedTextAndAttachments = false;
-    context.pass = 0;
-    context.firstAttachment = false;
-    context.hasTextPart = false;
-
-    htmlForAbstractPart(mainPart, &context);
-    
-    context.relatedAttachments = relatedAttachments;
-    context.attachments = attachments;
-    context.hasMixedTextAndAttachments = (context.state == RENDER_STATE_HAD_ATTACHMENT_THEN_TEXT);
-    context.pass = 1;
-    context.firstAttachment = false;
-    context.hasTextPart = false;
-
-    htmlCallback->setMixedTextAndAttachmentsModeEnabled(context.hasMixedTextAndAttachments);
-
-    String * content = htmlForAbstractPart(mainPart, &context);
     if (content == NULL)
         return NULL;
     
