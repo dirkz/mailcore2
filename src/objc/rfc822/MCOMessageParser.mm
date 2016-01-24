@@ -81,7 +81,7 @@
 
 - (NSString *) plainTextBodyRendering
 {
-    return [self plainTextBodyRenderingAndStripWhitespace:YES];
+    return [self plainTextBodyRenderingAndStripWhitespace:NO];
 }
 
 - (NSString *) plainTextBodyRenderingAndStripWhitespace:(BOOL)stripWhitespace
