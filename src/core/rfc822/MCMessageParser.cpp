@@ -198,9 +198,8 @@ String * MessageParser::plainTextRendering()
         Array * parts = ((Multipart *) part)->parts();
         Attachment * att = (Attachment *)parts->objectAtIndex(0);
         data = att->data();
-        MCAssert(data != NULL);
         if (data == NULL)
-            return NULL;
+            return MCSTR("");
         String * str = data->stringWithDetectedCharset(charset, false);
         return str;
     }
