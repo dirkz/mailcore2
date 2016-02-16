@@ -433,15 +433,6 @@ String * htmlForAbstractMultipartAlternative(AbstractMultipart * part, htmlRende
     if (preferredAlternative == NULL)
         return MCSTR("");
 
-    // Exchange sends calendar invitation as alternative part. We need to extract it.
-    AbstractPart * calendar = NULL;
-    for(unsigned int i = 0 ; i < part->parts()->count() ; i ++) {
-        AbstractPart * subpart = (AbstractPart *) part->parts()->objectAtIndex(i);
-        if (partContainsMimeType(subpart, MCSTR("text/calendar"))) {
-            calendar = subpart;
-        }
-    }
-
     String * html = htmlForAbstractPart(preferredAlternative, context);
     if (html == NULL) {
         return NULL;
@@ -449,9 +440,6 @@ String * htmlForAbstractMultipartAlternative(AbstractMultipart * part, htmlRende
     
     String * result = String::string();
     result->appendString(html);
-    if (calendar != NULL) {
-        result->appendString(htmlForAbstractPart(calendar, context));
-    }
     return result;
 }
 
