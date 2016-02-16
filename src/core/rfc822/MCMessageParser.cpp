@@ -10,6 +10,7 @@
 #include "MCMultipart.h"
 #include "MCMessageHeader.h"
 #include "MCHTMLRenderer.h"
+#include "MCPlainTextRenderer.h"
 #include "MCHTMLBodyRendererTemplateCallback.h"
 
 using namespace mailcore;
@@ -187,25 +188,8 @@ String * MessageParser::htmlBodyRendering()
 
 String * MessageParser::plainTextRendering()
 {
-    // Dirty hack for outlook message to go through.
-    // XXX FIXME
-    
-    AbstractPart * part = mainPart();
-
-    if (part->className()->isEqual(MCSTR("mailcore::Multipart"))) {
-        String * charset = part->charset();
-        Data * data = NULL;
-        Array * parts = ((Multipart *) part)->parts();
-        Attachment * att = (Attachment *)parts->objectAtIndex(0);
-        data = att->data();
-        if (data == NULL)
-            return MCSTR("");
-        String * str = data->stringWithDetectedCharset(charset, false);
-        return str;
-    }
-    
-    String * html = htmlRendering(NULL);
-    return html->flattenHTML();
+    String * html = PlainTextRenderer::htmlForRFC822Message(this, NULL);
+    return html;
 }
 
 String * MessageParser::plainTextBodyRendering(bool stripWhitespace)
