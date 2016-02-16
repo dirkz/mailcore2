@@ -23,6 +23,7 @@ DerivedData
 *.hmap
 *.xcuserstate
 *.xccheckout
+xcshareddata
 
 #CocoaPods
 Pods
