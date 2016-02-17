@@ -1,6 +1,5 @@
 Externals
 
-example/ios/iOS UI Test/DerivedData
 scripts/prebuilt.list
 scripts/installed-deps-versions.plist
 
@@ -18,7 +17,7 @@ scripts/installed-deps-versions.plist
 xcuserdata
 profile
 *.moved-aside
-DerivedData
+**/DerivedData
 .idea/
 *.hmap
 *.xcuserstate
