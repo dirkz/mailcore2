@@ -220,21 +220,7 @@ static String * htmlForAbstractMessage(String * folder, AbstractMessage * messag
         content = htmlForAbstractPart(mainPart, &context);
     }
     
-    if (content == NULL)
-        return NULL;
-    
-    content = htmlCallback->filterHTMLForMessage(content);
-    
-    HashMap * values = htmlCallback->templateValuesForHeader(message->header());
-    String * headerString = renderTemplate(htmlCallback->templateForMainHeader(message->header()), values);
-    
-    HashMap * msgValues = new HashMap();
-    msgValues->setObjectForKey(MCSTR("HEADER"), headerString);
-    msgValues->setObjectForKey(MCSTR("BODY"), content);
-    String * result = renderTemplate(htmlCallback->templateForMessage(message), msgValues);
-    msgValues->release();
-    
-    return result;
+    return content;
 }
 
 static String * htmlForAbstractSinglePart(AbstractPart * part, htmlRendererContext * context);
@@ -245,23 +231,30 @@ static String * htmlForAbstractMultipartAlternative(AbstractMultipart * part, ht
 
 static String * htmlForAbstractPart(AbstractPart * part, htmlRendererContext * context)
 {
+    String * result = NULL;;
     switch (part->partType()) {
         case PartTypeSingle:
-            return htmlForAbstractSinglePart((AbstractPart *) part, context);
+            result = htmlForAbstractSinglePart((AbstractPart *) part, context);
+            break;
         case PartTypeMessage:
-            return htmlForAbstractMessagePart((AbstractMessagePart *) part, context);
+            result = htmlForAbstractMessagePart((AbstractMessagePart *) part, context);
+            break;
         case PartTypeMultipartMixed:
-            return htmlForAbstractMultipartMixed((AbstractMultipart *) part, context);
+            result = htmlForAbstractMultipartMixed((AbstractMultipart *) part, context);
+            break;
         case PartTypeMultipartRelated:
-            return htmlForAbstractMultipartRelated((AbstractMultipart *) part, context);
+            result = htmlForAbstractMultipartRelated((AbstractMultipart *) part, context);
+            break;
         case PartTypeMultipartAlternative:
-            return htmlForAbstractMultipartAlternative((AbstractMultipart *) part, context);
+            result = htmlForAbstractMultipartAlternative((AbstractMultipart *) part, context);
+            break;
         case PartTypeMultipartSigned:
-            return htmlForAbstractMultipartMixed((AbstractMultipart *) part, context);
+            result = htmlForAbstractMultipartMixed((AbstractMultipart *) part, context);
+            break;
         default:
             MCAssert(0);
     }
-    return NULL;
+    return result;
 }
 
 static String * htmlForAbstractSinglePart(AbstractPart * part, htmlRendererContext * context)
@@ -275,28 +268,6 @@ static String * htmlForAbstractSinglePart(AbstractPart * part, htmlRendererConte
     if (isTextPart(part, context)) {
         if (context->pass == 0) {
             if (context->state == RENDER_STATE_HAD_ATTACHMENT) {
-#if 0
-                if (part->className()->isEqual(MCSTR("mailcore::IMAPPart"))) {
-                    if (mimeType->isEqual(MCSTR("text/plain"))) {
-                        Data * data = context->dataCallback->dataForIMAPPart(context->folder, (IMAPPart *) part);
-                        if (data != NULL) {
-                            if (data->length() == 0) {
-                                return NULL;
-                            }
-                            else if (data->length() == 2) {
-                                if (strncmp(data->bytes(), "\r\n", 2) == 0) {
-                                    return NULL;
-                                }
-                            }
-                            else if (data->length() == 1) {
-                                if (strncmp(data->bytes(), "\n", 1) == 0) {
-                                    return NULL;
-                                }
-                            }
-                        }
-                    }
-                }
-#endif
                 context->state = RENDER_STATE_HAD_ATTACHMENT_THEN_TEXT;
             }
             return NULL;
@@ -318,92 +289,13 @@ static String * htmlForAbstractSinglePart(AbstractPart * part, htmlRendererConte
                 return NULL;
             
             String * str = data->stringWithDetectedCharset(charset, false);
-            str = str->htmlMessageContent();
+            //str = str->htmlMessageContent();
             //str = context->htmlCallback->filterHTMLForPart(str);
             context->firstRendered = true;
             return str;
         }
-        else if (mimeType->isEqual(MCSTR("text/html"))) {
-            String * charset = part->charset();
-            Data * data = NULL;
-            if (part->className()->isEqual(MCSTR("mailcore::IMAPPart"))) {
-                data = context->dataCallback->dataForIMAPPart(context->folder, (IMAPPart *) part);
-            }
-            else if (part->className()->isEqual(MCSTR("mailcore::Attachment"))) {
-                data = ((Attachment *) part)->data();
-                // It may be NULL when mailcore::MessageParser::attachments() is invoked when
-                // when mailcore::MessageParser has been serialized/unserialized.
-            }
-            if (data == NULL)
-                return NULL;
-            
-            String * str = data->stringWithDetectedCharset(charset, true);
-            str = context->htmlCallback->cleanHTMLForPart(str);
-            str = context->htmlCallback->filterHTMLForPart(str);
-            context->firstRendered = true;
-            return str;
-        }
-        else {
-            MCAssert(0);
-            return NULL;
-        }
     }
-    else {
-		
-		if (!context->htmlCallback->shouldShowPart(part))
-            return MCSTR("");
-		
-        if (context->pass == 0) {
-            if (context->state == RENDER_STATE_NONE) {
-                context->state = RENDER_STATE_HAD_ATTACHMENT;
-            }
-            return NULL;
-        }
-        
-        if (part->uniqueID() == NULL) {
-            part->setUniqueID(String::uuidString());
-        }
-        
-        String * result = String::string();
-        String * separatorString;
-        String * content;
-        
-        if (!context->firstAttachment && context->hasTextPart) {
-            separatorString = context->htmlCallback->templateForAttachmentSeparator();
-        }
-        else {
-            separatorString = MCSTR("");
-        }
-        
-        context->firstAttachment = true;
-        
-        if (context->htmlCallback->canPreviewPart(part)) {
-            if (part->className()->isEqual(MCSTR("mailcore::IMAPPart"))) {
-                context->dataCallback->prefetchImageIMAPPart(context->folder, (IMAPPart *) part);
-            }
-            String * url = String::stringWithUTF8Format("x-mailcore-image:%s",
-                                                                            part->uniqueID()->UTF8Characters());
-            HashMap * values = context->htmlCallback->templateValuesForPart(part);
-            values->setObjectForKey(MCSTR("URL"), url);
-            content = renderTemplate(context->htmlCallback->templateForImage(part), values);
-        }
-        else {
-            if (part->className()->isEqual(MCSTR("mailcore::IMAPPart"))) {
-                context->dataCallback->prefetchAttachmentIMAPPart(context->folder, (IMAPPart *) part);
-            }
-            HashMap * values = context->htmlCallback->templateValuesForPart(part);
-            content = renderTemplate(context->htmlCallback->templateForAttachment(part), values);
-        }
-        
-        result->appendString(separatorString);
-        result->appendString(content);
-        
-        if (context->attachments != NULL) {
-            context->attachments->addObject(part);
-        }
-        
-        return result;
-    }
+    return NULL;
 }
 
 static String * htmlForAbstractMessagePart(AbstractMessagePart * part, htmlRendererContext * context)
@@ -412,35 +304,17 @@ static String * htmlForAbstractMessagePart(AbstractMessagePart * part, htmlRende
         return NULL;
     }
     String * substring = htmlForAbstractPart(part->mainPart(), context);
-    if (substring == NULL)
-        return NULL;
-    
-    HashMap * values = context->htmlCallback->templateValuesForHeader(part->header());
-    String * headerString = renderTemplate(context->htmlCallback->templateForEmbeddedMessageHeader(part->header()), values);
-	
-	HashMap * msgValues = new HashMap();
-    msgValues->setObjectForKey(MCSTR("HEADER"), headerString);
-    msgValues->setObjectForKey(MCSTR("BODY"), substring);
-    String * result = renderTemplate(context->htmlCallback->templateForEmbeddedMessage(part), msgValues);
-    msgValues->release();
-
-    return result;
+    return substring;
 }
 
 String * htmlForAbstractMultipartAlternative(AbstractMultipart * part, htmlRendererContext * context)
 {
     AbstractPart * preferredAlternative = preferredPartInMultipartAlternative(part);
     if (preferredAlternative == NULL)
-        return MCSTR("");
+        return NULL;
 
     String * html = htmlForAbstractPart(preferredAlternative, context);
-    if (html == NULL) {
-        return NULL;
-    }
-    
-    String * result = String::string();
-    result->appendString(html);
-    return result;
+    return html;
 }
 
 static String * htmlForAbstractMultipartMixed(AbstractMultipart * part, htmlRendererContext * context)
@@ -449,10 +323,7 @@ static String * htmlForAbstractMultipartMixed(AbstractMultipart * part, htmlRend
     for(unsigned int i = 0 ; i < part->parts()->count() ; i ++) {
         AbstractPart * subpart = (AbstractPart *) part->parts()->objectAtIndex(i);
         String * substring = htmlForAbstractPart(subpart, context);
-        if (context->pass != 0) {
-            if (substring == NULL)
-                return NULL;
-            
+        if (context->pass != 0 && substring != NULL) {
             result->appendString(substring);
         }
     }
