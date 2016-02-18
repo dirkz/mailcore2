@@ -196,7 +196,7 @@ String * MessageParser::plainTextBodyRendering(bool stripWhitespace)
 {
     String * plainTextBodyString = plainTextRendering();
     
-    if (stripWhitespace) {
+    if (stripWhitespace && plainTextBodyString != NULL) {
         plainTextBodyString = plainTextBodyString->stripWhitespace();
     }
     return plainTextBodyString;
